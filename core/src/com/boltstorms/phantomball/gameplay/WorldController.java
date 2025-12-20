@@ -15,6 +15,7 @@ public class WorldController {
 
     private boolean dead = false;
     private float driftTimer = 0f;
+    private boolean paused = false;
 
     private int score = 0;
 
@@ -24,6 +25,18 @@ public class WorldController {
         H = height;
         reset();
     }
+    public void togglePause() {
+        paused = !paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
 
     // Reset entire game state
     private void reset() {
@@ -51,7 +64,8 @@ public class WorldController {
     // Main update loop
     public void update(float dt) {
         if (W <= 0 || H <= 0) return;
-        if (dead) return;
+        if (dead || paused) return;
+
 
         ball.update(dt, W, H);
 

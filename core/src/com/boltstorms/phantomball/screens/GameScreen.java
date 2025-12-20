@@ -14,6 +14,8 @@ import com.boltstorms.phantomball.PhantomBallGame;
 import com.boltstorms.phantomball.gameplay.WorldController;
 import com.boltstorms.phantomball.util.Const;
 import com.boltstorms.phantomball.util.PlayerProfile;
+import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 
 public class GameScreen extends ScreenAdapter {
 
@@ -28,6 +30,10 @@ public class GameScreen extends ScreenAdapter {
     // ✅ NEW: fixed virtual camera/viewport
     private OrthographicCamera cam;
     private Viewport viewport;
+    // Pause UI
+    private Rectangle pauseBtn;
+    private Rectangle resumeBtn;
+    private Rectangle exitBtn;
 
     public GameScreen(PhantomBallGame game) {
         this.game = game;
@@ -49,6 +55,32 @@ public class GameScreen extends ScreenAdapter {
         world = new WorldController();
         world.resize((int) Const.VIRTUAL_W, (int) Const.VIRTUAL_H);
 
+        float btnSize = 64f;
+
+// Pause button (top-right)
+        pauseBtn = new Rectangle(
+                Const.VIRTUAL_W - btnSize - 20,
+                Const.VIRTUAL_H - btnSize - 20,
+                btnSize,
+                btnSize
+        );
+
+// Pause menu buttons (centered)
+        resumeBtn = new Rectangle(
+                Const.VIRTUAL_W * 0.5f - 140,
+                Const.VIRTUAL_H * 0.5f + 20,
+                280,
+                80
+        );
+
+        exitBtn = new Rectangle(
+                Const.VIRTUAL_W * 0.5f - 140,
+                Const.VIRTUAL_H * 0.5f - 80,
+                280,
+                80
+        );
+
+
         sr.setProjectionMatrix(cam.combined);
         batch.setProjectionMatrix(cam.combined);
     }
@@ -62,31 +94,55 @@ public class GameScreen extends ScreenAdapter {
 
     @Override
     public void render(float delta) {
+
         // Input (tap/click)
         if (Gdx.input.justTouched()) {
-            world.onTap();
+            Vector2 touch = new Vector2(Gdx.input.getX(), Gdx.input.getY());
+            viewport.unproject(touch);
+
+            // If paused → only UI works
+            if (world.isPaused()) {
+                if (resumeBtn.contains(touch)) {
+                    world.setPaused(false);
+                } else if (exitBtn.contains(touch)) {
+                    world.setPaused(false); // optional safety
+                    game.setScreen(new MenuScreen(game));
+                    return;
+                }
+            }
+            // If not paused
+            else {
+                if (pauseBtn.contains(touch)) {
+                    world.setPaused(true);
+                } else {
+                    world.onTap(); // normal gameplay tap
+                }
+            }
         }
 
-        // Update
+        // Update (WorldController should early-return if paused)
         world.update(delta);
 
         // Clear
         Gdx.gl.glClearColor(0.05f, 0.05f, 0.07f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw shapes
+        // Draw shapes (game world)
         sr.begin(ShapeRenderer.ShapeType.Filled);
         world.draw(sr);
         sr.end();
 
-        // Draw HUD + player name
+        // Draw HUD + player name + pause icon
         batch.begin();
 
         String state = world.isGhostState() ? "GHOST" : "MORTAL";
         font.draw(batch, "Score: " + world.getScore(), 20, Const.VIRTUAL_H - 20);
         font.draw(batch, "State: " + state, 20, Const.VIRTUAL_H - 60);
 
-        // ✅ Draw player name above ball
+        // Pause button icon
+        font.draw(batch, "||", pauseBtn.x + 18, pauseBtn.y + 46);
+
+        // Player name above ball
         Vector2 pos = world.getBallPos();
         String name = PlayerProfile.getPlayerName();
         font.draw(batch, name, pos.x - 20, pos.y + world.getBallRadius() + 30);
@@ -96,7 +152,46 @@ public class GameScreen extends ScreenAdapter {
         }
 
         batch.end();
+
+        // ===== PAUSE OVERLAY (draw on top) =====
+        if (world.isPaused()) {
+
+            // Dark overlay + button rectangles
+            sr.begin(ShapeRenderer.ShapeType.Filled);
+
+            // Darken screen
+            sr.setColor(0f, 0f, 0f, 0.55f);
+            sr.rect(0, 0, Const.VIRTUAL_W, Const.VIRTUAL_H);
+
+            // Resume button background
+            sr.setColor(1f, 1f, 1f, 0.12f);
+            sr.rect(resumeBtn.x, resumeBtn.y, resumeBtn.width, resumeBtn.height);
+
+            // Exit button background
+            sr.setColor(1f, 1f, 1f, 0.12f);
+            sr.rect(exitBtn.x, exitBtn.y, exitBtn.width, exitBtn.height);
+
+            sr.end();
+
+            // Text on top of rectangles
+            batch.begin();
+
+            font.draw(batch, "PAUSED",
+                    Const.VIRTUAL_W * 0.5f - 60,
+                    Const.VIRTUAL_H * 0.5f + 160);
+
+            font.draw(batch, "RESUME",
+                    resumeBtn.x + 85,
+                    resumeBtn.y + 55);
+
+            font.draw(batch, "EXIT TO MENU",
+                    exitBtn.x + 55,
+                    exitBtn.y + 55);
+
+            batch.end();
+        }
     }
+
 
     @Override
     public void dispose() {
