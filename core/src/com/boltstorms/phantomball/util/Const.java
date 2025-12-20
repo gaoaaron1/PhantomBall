@@ -2,15 +2,18 @@ package com.boltstorms.phantomball.util;
 
 public final class Const {
 
-    // Prevent instantiation
     private Const() {}
+
+    // ===== Virtual resolution (phone-like) =====
+    public static final float VIRTUAL_W = 540f;
+    public static final float VIRTUAL_H = 960f;
 
     // World
     public static final float BALL_RADIUS = 18f;
 
     // Speeds
-    public static final float BALL_SPEED_X = 240f;
-    public static final float BALL_SPEED_Y = 170f;
+    public static final float BALL_SPEED_X = 480f;
+    public static final float BALL_SPEED_Y = 340f;
 
     public static final float PROP_MIN_RADIUS = 14f;
     public static final float PROP_MAX_RADIUS = 28f;
@@ -29,5 +32,4 @@ public final class Const {
     // Absorb / damage amounts
     public static final float ABSORB_GROWTH = 2.2f;     // how much radius increases on safe hit
     public static final float DAMAGE_SHRINK = 3.5f;     // how much radius decreases on wrong hit
-
 }

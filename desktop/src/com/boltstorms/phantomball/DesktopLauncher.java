@@ -2,14 +2,17 @@ package com.boltstorms.phantomball;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import com.boltstorms.phantomball.PhantomBallGame;
 
-// Please note that on macOS your application needs to be started with the -XstartOnFirstThread JVM argument
 public class DesktopLauncher {
-	public static void main (String[] arg) {
+	public static void main(String[] arg) {
 		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
 		config.setForegroundFPS(60);
 		config.setTitle("PhantomBall");
+
+		// Phone-like portrait window
+		config.setWindowedMode(540, 960);
+		config.setResizable(false);
+
 		new Lwjgl3Application(new PhantomBallGame(), config);
 	}
 }

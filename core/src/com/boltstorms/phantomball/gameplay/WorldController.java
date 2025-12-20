@@ -1,6 +1,7 @@
 package com.boltstorms.phantomball.gameplay;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.util.Const;
 
 import java.util.ArrayList;
@@ -34,7 +35,6 @@ public class WorldController {
 
         props.clear();
         for (int i = 0; i < 10; i++) {
-            // true = blue prop, false = red prop
             props.add(Prop.randomProp(W, H, i % 2 == 0));
         }
     }
@@ -55,7 +55,6 @@ public class WorldController {
 
         ball.update(dt, W, H);
 
-        // Zero-G chaos drift
         driftTimer += dt;
         boolean doNudge = driftTimer >= Const.DRIFT_NUDGE_TIME;
         if (doNudge) driftTimer = 0f;
@@ -66,18 +65,15 @@ public class WorldController {
 
             if (p.collides(ball)) {
 
-                // SAME COLOR = CAN EAT
                 boolean sameColor =
                         (ball.isGhost() && p.isGhostProp()) ||
                                 (!ball.isGhost() && !p.isGhostProp());
 
                 if (sameColor) {
-                    // ✅ Eat
                     score++;
                     ball.grow(Const.ABSORB_GROWTH);
                     p.respawn(W, H);
                 } else {
-                    // ❌ Wrong color → damage
                     ball.shrink(Const.DAMAGE_SHRINK);
                     p.respawn(W, H);
 
@@ -98,7 +94,6 @@ public class WorldController {
 
         ball.draw(sr);
 
-        // Dark overlay on death
         if (dead) {
             sr.setColor(0f, 0f, 0f, 0.35f);
             sr.rect(0, 0, W, H);
@@ -121,5 +116,10 @@ public class WorldController {
 
     public float getBallRadius() {
         return ball.getR();
+    }
+
+    // ✅ NEW: allow GameScreen to draw name above ball
+    public Vector2 getBallPos() {
+        return ball.getPos();
     }
 }
