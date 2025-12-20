@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.util.Const;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import java.util.ArrayList;
 
@@ -105,26 +106,28 @@ public class WorldController {
      * - Player ball sprite: SpriteBatch
      */
     public void draw(ShapeRenderer sr, SpriteBatch batch) {
-        // Draw props using shapes
-        sr.begin(ShapeRenderer.ShapeType.Filled);
-        for (Prop p : props) {
-            p.draw(sr);
-        }
 
-        if (dead) {
-            sr.setColor(0f, 0f, 0f, 0.35f);
-            sr.rect(0, 0, W, H);
-        }
-        sr.end();
-
-        // Draw player using sprite
+        // Draw props + player with SpriteBatch
         batch.begin();
+        for (Prop p : props) {
+            p.draw(batch);
+        }
         ball.draw(batch);
         batch.end();
+
+        // Dead overlay stays ShapeRenderer
+        if (dead) {
+            sr.begin(ShapeRenderer.ShapeType.Filled);
+            sr.setColor(0f, 0f, 0f, 0.35f);
+            sr.rect(0, 0, W, H);
+            sr.end();
+        }
     }
+
 
     public void dispose() {
         ball.dispose();
+        Prop.disposeAll();
     }
 
     // ===== HUD GETTERS =====

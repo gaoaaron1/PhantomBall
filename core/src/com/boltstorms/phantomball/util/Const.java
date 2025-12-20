@@ -12,8 +12,8 @@ public final class Const {
     public static final float BALL_RADIUS = 18f;
 
     // Speeds
-    public static final float BALL_SPEED_X = 180f;
-    public static final float BALL_SPEED_Y = 140f;
+    public static final float BALL_SPEED_X = 360f;
+    public static final float BALL_SPEED_Y = 280f;
 
     public static final float PROP_MIN_RADIUS = 14f;
     public static final float PROP_MAX_RADIUS = 28f;

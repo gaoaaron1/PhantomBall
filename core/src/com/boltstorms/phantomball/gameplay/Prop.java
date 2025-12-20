@@ -1,6 +1,8 @@
 package com.boltstorms.phantomball.gameplay;
 
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.util.Const;
@@ -13,9 +15,46 @@ public class Prop {
     private float r;
     private boolean ghostProp;
 
+    // NEW: which sprite this prop uses
+    private Texture sprite;
+
+    // NEW: shared textures (loaded once)
+    private static Texture BLUE_1, BLUE_2, RED_1, RED_2;
+    private static boolean loaded = false;
+
+    private static void ensureLoaded() {
+        if (loaded) return;
+
+        BLUE_1 = new Texture(Gdx.files.internal("BlueSpirit1.png"));
+        BLUE_2 = new Texture(Gdx.files.internal("BlueSpirit2.png"));
+        RED_1  = new Texture(Gdx.files.internal("RedSpirit1.png"));
+        RED_2  = new Texture(Gdx.files.internal("RedSpirit2.png"));
+
+        BLUE_1.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        BLUE_2.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        RED_1.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        RED_2.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+
+        loaded = true;
+    }
+
+    // Call from WorldController.dispose()
+    public static void disposeAll() {
+        if (!loaded) return;
+        BLUE_1.dispose();
+        BLUE_2.dispose();
+        RED_1.dispose();
+        RED_2.dispose();
+        loaded = false;
+    }
+
     // Factory method for creating a random prop
     public static Prop randomProp(float W, float H, boolean ghostProp) {
+        ensureLoaded();
+
         Prop p = new Prop();
+        p.ghostProp = ghostProp;
+
         p.r = MathUtils.random(Const.PROP_MIN_RADIUS, Const.PROP_MAX_RADIUS);
         p.pos.set(
                 MathUtils.random(p.r, W - p.r),
@@ -31,9 +70,18 @@ public class Prop {
             p.vel.set(140f, 90f);
         }
 
-        p.ghostProp = ghostProp;
+        p.pickRandomSprite();
         p.clampSpeed();
         return p;
+    }
+
+    private void pickRandomSprite() {
+        // ghostProp true = RED, ghostProp false = BLUE (matching your old behavior mapping)
+        if (ghostProp) {
+            sprite = MathUtils.randomBoolean() ? RED_1 : RED_2;
+        } else {
+            sprite = MathUtils.randomBoolean() ? BLUE_1 : BLUE_2;
+        }
     }
 
     public boolean isGhostProp() {
@@ -71,7 +119,7 @@ public class Prop {
         return (dx * dx + dy * dy) <= (rr * rr);
     }
 
-    // NEW: Respawn after successful (safe) collision
+    // Respawn after collision
     public void respawn(float W, float H) {
         pos.set(
                 MathUtils.random(r, W - r),
@@ -86,17 +134,28 @@ public class Prop {
             vel.set(140f, 90f);
         }
 
+        pickRandomSprite();
         clampSpeed();
     }
 
-    public void draw(ShapeRenderer sr) {
-        // Solid props are opaque, ghost props are translucent
-        if (ghostProp) {
-            sr.setColor(1f, 0.4f, 0.55f, 1f);    // solid pink/red
+    // NEW: draw using SpriteBatch
+    public void draw(SpriteBatch batch) {
+        if (sprite == null) return;
+
+        float size = r * 2f;
+        float x = pos.x - r;
+        float y = pos.y - r;
+
+        // blue props should be translucent (like your old cyan alpha)
+        if (!ghostProp) {
+            batch.setColor(1f, 1f, 1f, 0.30f);
         } else {
-            sr.setColor(0.55f, 0.85f, 1f, 0.30f); // translucent cyan
+            batch.setColor(1f, 1f, 1f, 1f);
         }
 
-        sr.circle(pos.x, pos.y, r);
+        batch.draw(sprite, x, y, size, size);
+
+        // always reset so it doesn’t affect other draws
+        batch.setColor(1f, 1f, 1f, 1f);
     }
 }

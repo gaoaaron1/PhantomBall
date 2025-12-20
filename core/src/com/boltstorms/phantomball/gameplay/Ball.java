@@ -17,23 +17,38 @@ public class Ball {
 
     private boolean ghost = false;
 
-    // Animation
+    // Animation (pulse + rotation)
     private float animTime = 0f;
     private float rotation = 0f;
 
     private static final float PULSE_AMPLITUDE = 0.08f; // 8% size change
-    private static final float PULSE_SPEED = 3.5f;     // higher = faster pulse
+    private static final float PULSE_SPEED = 3.5f;      // higher = faster pulse
     private static final float ROT_SPEED = 90f;         // degrees per second
 
-    private final Texture texNormal;
-    private final Texture texGhost;
+    // NEW: sprite flicker animation like spirits
+    private float frameTimer = 0f;
+    private static final float FRAME_TIME = 0.18f;      // swap speed
+    private boolean frameB = false;                     // false = frame1, true = frame2
+
+    // 2 frames for each mode
+    private final Texture normal1;
+    private final Texture normal2;
+    private final Texture ghost1;
+    private final Texture ghost2;
 
     public Ball() {
-        texNormal = new Texture(Gdx.files.internal("PhantomPlayer.png"));
-        texGhost  = new Texture(Gdx.files.internal("PhantomPlayerPink.png"));
+        // Normal
+        normal1 = new Texture(Gdx.files.internal("PhantomPlayer.png"));
+        normal2 = new Texture(Gdx.files.internal("PhantomPlayer.png"));
 
-        texNormal.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        texGhost.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        // Ghost
+        ghost1 = new Texture(Gdx.files.internal("PhantomPlayerPink.png"));
+        ghost2 = new Texture(Gdx.files.internal("PhantomPlayerPink.png"));
+
+        normal1.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        normal2.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        ghost1.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        ghost2.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
     }
 
     public void reset(float x, float y) {
@@ -47,10 +62,17 @@ public class Ball {
 
         animTime = 0f;
         rotation = 0f;
+
+        frameTimer = 0f;
+        frameB = MathUtils.randomBoolean(); // start randomly on frame 1 or 2
     }
 
     public void toggleGhost() {
         ghost = !ghost;
+
+        // Optional: small randomness when switching modes so it feels "alive"
+        frameB = MathUtils.randomBoolean();
+        frameTimer = 0f;
     }
 
     public boolean isGhost() {
@@ -80,10 +102,18 @@ public class Ball {
     }
 
     public void update(float dt, float W, float H) {
+        // Pulse + rotate
         animTime += dt;
-        rotation += ROT_SPEED * dt;
-        rotation %= 360f;
+        rotation = (rotation + ROT_SPEED * dt) % 360f;
 
+        // Frame swap (spirit effect)
+        frameTimer += dt;
+        if (frameTimer >= FRAME_TIME) {
+            frameTimer -= FRAME_TIME;
+            frameB = !frameB;
+        }
+
+        // Movement
         pos.mulAdd(vel, dt);
 
         if (pos.x < r) { pos.x = r; vel.x *= -1; }
@@ -92,8 +122,16 @@ public class Ball {
         if (pos.y > H - r) { pos.y = H - r; vel.y *= -1; }
     }
 
+    private Texture getCurrentTexture() {
+        if (ghost) {
+            return frameB ? ghost2 : ghost1;
+        } else {
+            return frameB ? normal2 : normal1;
+        }
+    }
+
     public void draw(SpriteBatch batch) {
-        Texture tex = ghost ? texGhost : texNormal;
+        Texture tex = getCurrentTexture();
 
         // Pulsate scale
         float pulse = 1f + MathUtils.sin(animTime * PULSE_SPEED) * PULSE_AMPLITUDE;
@@ -118,7 +156,9 @@ public class Ball {
     }
 
     public void dispose() {
-        texNormal.dispose();
-        texGhost.dispose();
+        normal1.dispose();
+        normal2.dispose();
+        ghost1.dispose();
+        ghost2.dispose();
     }
 }

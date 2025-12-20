@@ -83,7 +83,7 @@ public class GameScreen extends ScreenAdapter {
         sr.setProjectionMatrix(cam.combined);
         batch.setProjectionMatrix(cam.combined);
 
-        bg = new Texture(Gdx.files.internal("bg_Space2.png"));
+        bg = new Texture(Gdx.files.internal("bg_Fireplace.png"));
         bg.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
     }
 
