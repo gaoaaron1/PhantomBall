@@ -4,6 +4,8 @@ public final class Const {
 
     private Const() {}
 
+    public static final float HIT_COOLDOWN = 0.18f; // tweak
+
     // ===== Virtual resolution (phone-like) =====
     public static final float VIRTUAL_W = 540f;
     public static final float VIRTUAL_H = 960f;

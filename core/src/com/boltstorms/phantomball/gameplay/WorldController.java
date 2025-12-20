@@ -122,54 +122,60 @@ public class WorldController {
             if (blueBall != null && p.collides(blueBall)) {
 
                 if (p.getType() == PhantomType.BLUE) {
-                    // correct hit -> grow + damage spirit
-                    score++;
-                    blueBall.grow(Const.BALL_GROW_AMOUNT);
+                    if (blueBall.canBeHit()) { // rename later if you want
+                        score++;
+                        blueBall.grow(Const.BALL_GROW_AMOUNT);
+                        blueBall.triggerHitCooldown(Const.HIT_COOLDOWN);
 
-                    // Spirit shrinks until it "dies", then respawns
-                    p.shrink(Const.PROP_HIT_SHRINK);
-                    if (p.isDead()) {
-                        p.respawn(W, H);
+                        p.shrink(Const.PROP_HIT_SHRINK);
+                        if (p.isDead()) {
+                            p.respawn(W, H);
+                        }
                     }
-
                 } else {
-                    // wrong hit -> ball takes damage, spirit unchanged
-                    blueBall.shrink(Const.BALL_SHRINK_AMOUNT);
+                    // wrong hit -> ball takes damage ONCE per cooldown
+                    if (blueBall.canBeHit()) {
+                        blueBall.shrink(Const.BALL_SHRINK_AMOUNT);
+                        blueBall.triggerHitCooldown(Const.HIT_COOLDOWN);
 
-
-                    if (blueBall.isDead()) {
-                        blueBall.dispose();
-                        blueBall = null;
-                        blueUsed = false; // card reactivates
+                        if (blueBall.isDead()) {
+                            blueBall.dispose();
+                            blueBall = null;
+                            blueUsed = false; // card reactivates
+                        }
                     }
                 }
+
             }
 
             // ===================== RED BALL =====================
             if (redBall != null && p.collides(redBall)) {
 
                 if (p.getType() == PhantomType.RED) {
-                    // correct hit -> grow + damage spirit
-                    score++;
-                    redBall.grow(Const.BALL_GROW_AMOUNT);
+                    if (redBall.canBeHit()) {
+                        score++;
+                        redBall.grow(Const.BALL_GROW_AMOUNT);
+                        redBall.triggerHitCooldown(Const.HIT_COOLDOWN);
 
-                    // Spirit shrinks until it "dies", then respawns
-                    p.shrink(Const.PROP_HIT_SHRINK);
-                    if (p.isDead()) {
-                        p.respawn(W, H);
+                        p.shrink(Const.PROP_HIT_SHRINK);
+                        if (p.isDead()) {
+                            p.respawn(W, H);
+                        }
                     }
-
                 } else {
-                    // wrong hit -> ball takes damage, spirit unchanged
-                    redBall.shrink(Const.BALL_SHRINK_AMOUNT);
+                    // wrong hit -> ball takes damage ONCE per cooldown
+                    if (redBall.canBeHit()) {
+                        redBall.shrink(Const.BALL_SHRINK_AMOUNT);
+                        redBall.triggerHitCooldown(Const.HIT_COOLDOWN);
 
-
-                    if (redBall.isDead()) {
-                        redBall.dispose();
-                        redBall = null;
-                        redUsed = false; // card reactivates
+                        if (redBall.isDead()) {
+                            redBall.dispose();
+                            redBall = null;
+                            redUsed = false; // card reactivates
+                        }
                     }
                 }
+
             }
         }
     }

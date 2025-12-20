@@ -30,6 +30,8 @@ public class Ball {
     private final Texture frame1;
     private final Texture frame2;
 
+    private float hitCooldown = 0f;
+
     public Ball(PhantomType type) {
         this.type = type;
 
@@ -56,8 +58,10 @@ public class Ball {
         frameB = MathUtils.randomBoolean();
         r = Const.BALL_START_RADIUS;
     }
-
+    public boolean canBeHit() { return hitCooldown <= 0f; }
+    public void triggerHitCooldown(float seconds) { hitCooldown = seconds; }
     public void update(float dt, float W, float H) {
+        if (hitCooldown > 0f) hitCooldown -= dt;
         animTime += dt;
         rotation = (rotation + ROT_SPEED * dt) % 360f;
 
