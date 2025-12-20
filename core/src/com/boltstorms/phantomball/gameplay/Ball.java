@@ -78,6 +78,19 @@ public class Ball {
     public PhantomType getType() {
         return type;
     }
+    public void resetWithAngle(float x, float y, float angleDeg) {
+        pos.set(x, y);
+
+        // One consistent launch speed, but random direction
+        float speed = (float) Math.sqrt(Const.BALL_SPEED_X * Const.BALL_SPEED_X + Const.BALL_SPEED_Y * Const.BALL_SPEED_Y);
+        vel.set(speed, 0f).setAngleDeg(angleDeg);
+
+        animTime = 0f;
+        rotation = 0f;
+        frameTimer = 0f;
+        frameB = MathUtils.randomBoolean();
+        r = Const.BALL_START_RADIUS;
+    }
 
     public Vector2 getPos() {
         return pos;

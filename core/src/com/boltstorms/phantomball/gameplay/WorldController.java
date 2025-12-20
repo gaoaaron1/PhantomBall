@@ -43,20 +43,21 @@ public class WorldController {
 
         blueBall = new Ball(PhantomType.BLUE);
 
-        // Use anchor if set, otherwise fallback
         float x = (blueSpawnX > 0f) ? blueSpawnX : W * 0.35f;
-        float y = (spawnY > 0f) ? spawnY : H * 0.15f;
+        float y = (spawnY > 0f) ? spawnY : H * 0.12f;
 
-        // Small jitter so it feels like it "spawns from the card"
+        // Spawn slightly around the anchor (near the card)
         x += com.badlogic.gdx.math.MathUtils.random(-25f, 25f);
         y += com.badlogic.gdx.math.MathUtils.random(0f, 20f);
 
-        // Clamp so it doesn't spawn inside walls
         float margin = Const.BALL_START_RADIUS + 6f;
         x = com.badlogic.gdx.math.MathUtils.clamp(x, margin, W - margin);
         y = com.badlogic.gdx.math.MathUtils.clamp(y, margin, H - margin);
 
-        blueBall.reset(x, y);
+        // Shoot out mostly upward, but random (Clash Royale vibe)
+        float angle = com.badlogic.gdx.math.MathUtils.random(35f, 145f);
+
+        blueBall.resetWithAngle(x, y, angle);
     }
 
     public void summonRed() {
@@ -66,7 +67,7 @@ public class WorldController {
         redBall = new Ball(PhantomType.RED);
 
         float x = (redSpawnX > 0f) ? redSpawnX : W * 0.65f;
-        float y = (spawnY > 0f) ? spawnY : H * 0.15f;
+        float y = (spawnY > 0f) ? spawnY : H * 0.12f;
 
         x += com.badlogic.gdx.math.MathUtils.random(-25f, 25f);
         y += com.badlogic.gdx.math.MathUtils.random(0f, 20f);
@@ -75,8 +76,11 @@ public class WorldController {
         x = com.badlogic.gdx.math.MathUtils.clamp(x, margin, W - margin);
         y = com.badlogic.gdx.math.MathUtils.clamp(y, margin, H - margin);
 
-        redBall.reset(x, y);
+        float angle = com.badlogic.gdx.math.MathUtils.random(35f, 145f);
+
+        redBall.resetWithAngle(x, y, angle);
     }
+
 
 
     private void reset() {
@@ -130,8 +134,8 @@ public class WorldController {
 
                 } else {
                     // wrong hit -> ball takes damage, spirit unchanged
-                    float dmg = scaledDamage(p);
-                    blueBall.shrink(dmg);
+                    blueBall.shrink(Const.BALL_SHRINK_AMOUNT);
+
 
                     if (blueBall.isDead()) {
                         blueBall.dispose();
@@ -157,8 +161,8 @@ public class WorldController {
 
                 } else {
                     // wrong hit -> ball takes damage, spirit unchanged
-                    float dmg = scaledDamage(p);
-                    redBall.shrink(dmg);
+                    redBall.shrink(Const.BALL_SHRINK_AMOUNT);
+
 
                     if (redBall.isDead()) {
                         redBall.dispose();
@@ -170,13 +174,7 @@ public class WorldController {
         }
     }
 
-        // You can delete this now if you no longer do wrong-color damage.
-    private float scaledDamage(Prop p) {
-        float t = (p.getRadius() - Const.PROP_MIN_RADIUS) / (Const.PROP_MAX_RADIUS - Const.PROP_MIN_RADIUS);
-        t = Math.max(0f, Math.min(1f, t));
-        float multiplier = 1.0f + t * 1.0f;
-        return Const.BALL_SHRINK_AMOUNT * multiplier;
-    }
+
 
     public void draw(ShapeRenderer sr, SpriteBatch batch) {
         batch.begin();
