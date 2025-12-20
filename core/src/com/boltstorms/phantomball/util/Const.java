@@ -30,6 +30,13 @@ public final class Const {
     public static final float BALL_MAX_RADIUS = 60f;    // cap so it doesn't fill screen
 
     // Absorb / damage amounts
+
+    public static final float BALL_GROW_AMOUNT  = 2.2f;
+    public static final float BALL_SHRINK_AMOUNT = 3.2f;
     public static final float ABSORB_GROWTH = 2.2f;     // how much radius increases on safe hit
     public static final float DAMAGE_SHRINK = 3.5f;     // how much radius decreases on wrong hit
+    public static final float PROP_HIT_SHRINK = 4.0f;
+    public static final float PROP_DIE_RADIUS = 10.0f;
+
+
 }

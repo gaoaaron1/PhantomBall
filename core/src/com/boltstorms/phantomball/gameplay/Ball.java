@@ -87,6 +87,19 @@ public class Ball {
         return r;
     }
 
+    public void grow(float amount) {
+        r = MathUtils.clamp(r + amount, Const.BALL_MIN_RADIUS, Const.BALL_MAX_RADIUS);
+    }
+
+    public void shrink(float amount) {
+        r = MathUtils.clamp(r - amount, Const.BALL_MIN_RADIUS, Const.BALL_MAX_RADIUS);
+    }
+
+    public boolean isDead() {
+        return r <= Const.BALL_MIN_RADIUS + 0.001f;
+    }
+
+
     private Texture getCurrentTexture() {
         return frameB ? frame2 : frame1;
     }

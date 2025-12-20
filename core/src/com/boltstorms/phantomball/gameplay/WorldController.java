@@ -22,11 +22,62 @@ public class WorldController {
     private boolean paused = false;
     private int score = 0;
 
+    private float blueSpawnX = 0f;
+    private float redSpawnX  = 0f;
+    private float spawnY     = 0f; // in WORLD coords (play area coords)
+
+
     public void resize(int width, int height) {
         W = width;
         H = height;
         reset();
     }
+    public void setSummonAnchors(float blueX, float redX, float y) {
+        this.blueSpawnX = blueX;
+        this.redSpawnX = redX;
+        this.spawnY = y;
+    }
+    public void summonBlue() {
+        if (blueUsed) return;
+        blueUsed = true;
+
+        blueBall = new Ball(PhantomType.BLUE);
+
+        // Use anchor if set, otherwise fallback
+        float x = (blueSpawnX > 0f) ? blueSpawnX : W * 0.35f;
+        float y = (spawnY > 0f) ? spawnY : H * 0.15f;
+
+        // Small jitter so it feels like it "spawns from the card"
+        x += com.badlogic.gdx.math.MathUtils.random(-25f, 25f);
+        y += com.badlogic.gdx.math.MathUtils.random(0f, 20f);
+
+        // Clamp so it doesn't spawn inside walls
+        float margin = Const.BALL_START_RADIUS + 6f;
+        x = com.badlogic.gdx.math.MathUtils.clamp(x, margin, W - margin);
+        y = com.badlogic.gdx.math.MathUtils.clamp(y, margin, H - margin);
+
+        blueBall.reset(x, y);
+    }
+
+    public void summonRed() {
+        if (redUsed) return;
+        redUsed = true;
+
+        redBall = new Ball(PhantomType.RED);
+
+        float x = (redSpawnX > 0f) ? redSpawnX : W * 0.65f;
+        float y = (spawnY > 0f) ? spawnY : H * 0.15f;
+
+        x += com.badlogic.gdx.math.MathUtils.random(-25f, 25f);
+        y += com.badlogic.gdx.math.MathUtils.random(0f, 20f);
+
+        float margin = Const.BALL_START_RADIUS + 6f;
+        x = com.badlogic.gdx.math.MathUtils.clamp(x, margin, W - margin);
+        y = com.badlogic.gdx.math.MathUtils.clamp(y, margin, H - margin);
+
+        redBall.reset(x, y);
+    }
+
 
     private void reset() {
         score = 0;
@@ -47,19 +98,7 @@ public class WorldController {
         }
     }
 
-    public void summonBlue() {
-        if (blueUsed) return;
-        blueUsed = true;
-        blueBall = new Ball(PhantomType.BLUE);
-        blueBall.reset(W * 0.35f, H * 0.5f);
-    }
 
-    public void summonRed() {
-        if (redUsed) return;
-        redUsed = true;
-        redBall = new Ball(PhantomType.RED);
-        redBall.reset(W * 0.65f, H * 0.5f);
-    }
 
     public void update(float dt) {
         if (paused) return;
@@ -75,16 +114,68 @@ public class WorldController {
             if (nudge) p.nudgeVelocity();
             p.update(dt, W, H);
 
-            if (blueBall != null && p.collides(blueBall) && p.getType() == PhantomType.BLUE) {
-                score++;
-                p.respawn(W, H);
+            // ===================== BLUE BALL =====================
+            if (blueBall != null && p.collides(blueBall)) {
+
+                if (p.getType() == PhantomType.BLUE) {
+                    // correct hit -> grow + damage spirit
+                    score++;
+                    blueBall.grow(Const.BALL_GROW_AMOUNT);
+
+                    // Spirit shrinks until it "dies", then respawns
+                    p.shrink(Const.PROP_HIT_SHRINK);
+                    if (p.isDead()) {
+                        p.respawn(W, H);
+                    }
+
+                } else {
+                    // wrong hit -> ball takes damage, spirit unchanged
+                    float dmg = scaledDamage(p);
+                    blueBall.shrink(dmg);
+
+                    if (blueBall.isDead()) {
+                        blueBall.dispose();
+                        blueBall = null;
+                        blueUsed = false; // card reactivates
+                    }
+                }
             }
 
-            if (redBall != null && p.collides(redBall) && p.getType() == PhantomType.RED) {
-                score++;
-                p.respawn(W, H);
+            // ===================== RED BALL =====================
+            if (redBall != null && p.collides(redBall)) {
+
+                if (p.getType() == PhantomType.RED) {
+                    // correct hit -> grow + damage spirit
+                    score++;
+                    redBall.grow(Const.BALL_GROW_AMOUNT);
+
+                    // Spirit shrinks until it "dies", then respawns
+                    p.shrink(Const.PROP_HIT_SHRINK);
+                    if (p.isDead()) {
+                        p.respawn(W, H);
+                    }
+
+                } else {
+                    // wrong hit -> ball takes damage, spirit unchanged
+                    float dmg = scaledDamage(p);
+                    redBall.shrink(dmg);
+
+                    if (redBall.isDead()) {
+                        redBall.dispose();
+                        redBall = null;
+                        redUsed = false; // card reactivates
+                    }
+                }
             }
         }
+    }
+
+        // You can delete this now if you no longer do wrong-color damage.
+    private float scaledDamage(Prop p) {
+        float t = (p.getRadius() - Const.PROP_MIN_RADIUS) / (Const.PROP_MAX_RADIUS - Const.PROP_MIN_RADIUS);
+        t = Math.max(0f, Math.min(1f, t));
+        float multiplier = 1.0f + t * 1.0f;
+        return Const.BALL_SHRINK_AMOUNT * multiplier;
     }
 
     public void draw(ShapeRenderer sr, SpriteBatch batch) {
@@ -102,14 +193,16 @@ public class WorldController {
     public boolean isBlueUsed() {
         return blueUsed;
     }
+
+    public boolean isRedUsed() {
+        return redUsed;
+    }
+
     public void setPlayBounds(float width, float height) {
         W = width;
         H = height;
     }
 
-    public boolean isRedUsed() {
-        return redUsed;
-    }
     public void setPaused(boolean paused) { this.paused = paused; }
     public boolean isPaused() { return paused; }
 

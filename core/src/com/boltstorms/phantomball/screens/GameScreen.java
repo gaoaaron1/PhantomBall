@@ -10,7 +10,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.boltstorms.phantomball.PhantomBallGame;
 import com.boltstorms.phantomball.gameplay.WorldController;
@@ -50,9 +50,9 @@ public class GameScreen extends ScreenAdapter {
     private float blueScale = 1f;
     private float redScale = 1f;
 
+    // Layout
     private float barH = 170f;
-    private float playH;
-
+    private float playH = 0f;
 
     public GameScreen(PhantomBallGame game) {
         this.game = game;
@@ -67,79 +67,117 @@ public class GameScreen extends ScreenAdapter {
         font.getData().setScale(1.6f);
 
         cam = new OrthographicCamera();
-        viewport = new FitViewport(Const.VIRTUAL_W, Const.VIRTUAL_H, cam);
+        viewport = new ExtendViewport(Const.VIRTUAL_W, Const.VIRTUAL_H, cam);
         viewport.apply(true);
 
-        // ===== World setup =====
+        cam.update();
+        batch.setProjectionMatrix(cam.combined);
+        sr.setProjectionMatrix(cam.combined);
+
+        // World
         world = new WorldController();
 
-        // Height of the bottom HUD bar
-        float barH = 170f;
+        // Create rects (we will set sizes in rebuildUiLayout)
+        pauseBtn = new Rectangle();
+        resumeBtn = new Rectangle();
+        exitBtn = new Rectangle();
 
-        // HUD bar rectangle (screen-space)
-        hudBar = new Rectangle(0, 0, Const.VIRTUAL_W, barH);
+        hudBar = new Rectangle();
+        blueCard = new Rectangle();
+        redCard = new Rectangle();
 
-        // Playable world height (everything ABOVE the HUD)
-        float playH = Const.VIRTUAL_H - barH;
+        // Textures
+        bg = new Texture(Gdx.files.internal("bg_Fireplace.png"));
+        bg.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
-        // IMPORTANT: world only simulates inside play area
-        world.resize((int) Const.VIRTUAL_W, (int) playH);
+        blueCardTex = new Texture(Gdx.files.internal("BlueSpiritCard1.png"));
+        redCardTex  = new Texture(Gdx.files.internal("RedSpiritCard1.png"));
+        blueCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        redCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
-        // ===== Pause UI =====
+        // Build UI + set world bounds based on current viewport
+        rebuildUiLayout(true);
+    }
+
+    private void rebuildUiLayout(boolean firstTime) {
+        float worldW = viewport.getWorldWidth();
+        float worldH = viewport.getWorldHeight();
+
+        // You can keep it fixed OR make it proportional. Fixed usually looks best.
+        barH = 170f;
+
+        hudBar.set(0, 0, worldW, barH);
+
+        playH = worldH - barH;
+
+        if (firstTime) {
+            // First time: resize resets world and respawns props
+            world.resize((int) worldW, (int) playH);
+        } else {
+            // Resizes: keep the current game running
+            world.setPlayBounds(worldW, playH);
+        }
+
+        // Pause button (top-right)
         float btnSize = 64f;
-        pauseBtn = new Rectangle(
-                Const.VIRTUAL_W - btnSize - 20,
-                Const.VIRTUAL_H - btnSize - 20,
+        pauseBtn.set(
+                worldW - btnSize - 20f,
+                worldH - btnSize - 20f,
                 btnSize,
                 btnSize
         );
 
-        resumeBtn = new Rectangle(
-                Const.VIRTUAL_W * 0.5f - 140,
-                Const.VIRTUAL_H * 0.5f + 20,
-                280,
-                80
+        // Pause overlay buttons (center)
+        resumeBtn.set(
+                worldW * 0.5f - 140f,
+                worldH * 0.5f + 20f,
+                280f,
+                80f
         );
 
-        exitBtn = new Rectangle(
-                Const.VIRTUAL_W * 0.5f - 140,
-                Const.VIRTUAL_H * 0.5f - 80,
-                280,
-                80
+        exitBtn.set(
+                worldW * 0.5f - 140f,
+                worldH * 0.5f - 80f,
+                280f,
+                80f
         );
 
-        // ===== Card layout (inside HUD bar) =====
+        // Card layout (inside HUD)
         float cardAreaW = 210f;
         float cardAreaH = barH - 32f;
         float gap = 32f;
 
         float totalW = cardAreaW * 2f + gap;
-        float startX = (Const.VIRTUAL_W - totalW) * 0.5f;
+        float startX = (worldW - totalW) * 0.5f;
         float cardY = 16f;
 
-        blueCard = new Rectangle(startX, cardY, cardAreaW, cardAreaH);
-        redCard  = new Rectangle(startX + cardAreaW + gap, cardY, cardAreaW, cardAreaH);
+        blueCard.set(startX, cardY, cardAreaW, cardAreaH);
+        redCard.set(startX + cardAreaW + gap, cardY, cardAreaW, cardAreaH);
 
-        // ===== Background =====
-        bg = new Texture(Gdx.files.internal("bg_Fireplace.png"));
-        bg.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        float blueCenterX = blueCard.x + blueCard.width * 0.5f;
+        float redCenterX  = redCard.x  + redCard.width  * 0.5f;
 
-        // ===== Card art =====
-        blueCardTex = new Texture(Gdx.files.internal("BlueSpiritCard1.png"));
-        redCardTex  = new Texture(Gdx.files.internal("RedSpiritCard1.png"));
-        blueCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        redCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+// Spawn just above the HUD boundary (world coords)
+        float spawnY = 60f;
+
+        world.setSummonAnchors(blueCenterX, redCenterX, spawnY);
+
     }
-
 
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
+
+        cam.update();
+        batch.setProjectionMatrix(cam.combined);
+        sr.setProjectionMatrix(cam.combined);
+
+        // Recompute UI + play bounds for new aspect ratio
+        rebuildUiLayout(false);
     }
 
     @Override
     public void render(float delta) {
-
         smoothCardScales(delta);
 
         // ===== Input =====
@@ -167,6 +205,7 @@ public class GameScreen extends ScreenAdapter {
                 return;
             }
 
+            // Only allow card presses inside HUD bar
             if (hudBar.contains(touch)) {
                 if (blueCard.contains(touch)) pressed = 1;
                 else if (redCard.contains(touch)) pressed = 2;
@@ -192,27 +231,23 @@ public class GameScreen extends ScreenAdapter {
         Gdx.gl.glClearColor(0.05f, 0.05f, 0.07f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Background
+        // Background fills full world size
         batch.begin();
-        batch.draw(bg, 0, 0, Const.VIRTUAL_W, Const.VIRTUAL_H);
+        batch.draw(bg, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
         batch.end();
 
-        // World
-// Draw world ABOVE the HUD bar
-        batch.setTransformMatrix(batch.getTransformMatrix().idt().translate(0, hudBar.height, 0));
-        sr.setTransformMatrix(sr.getTransformMatrix().idt().translate(0, hudBar.height, 0));
+        // World draws ABOVE the HUD bar (so world y=0 starts at screen y=barH)
+        batch.setTransformMatrix(batch.getTransformMatrix().idt().translate(0, barH, 0));
+        sr.setTransformMatrix(sr.getTransformMatrix().idt().translate(0, barH, 0));
 
         world.draw(sr, batch);
 
-// Reset transforms for HUD
+        // Reset transforms for HUD drawing
         batch.setTransformMatrix(batch.getTransformMatrix().idt());
         sr.setTransformMatrix(sr.getTransformMatrix().idt());
 
-
-        // HUD
         drawHud();
 
-        // Pause overlay
         if (world.isPaused()) {
             drawPauseOverlay();
         }
@@ -228,50 +263,47 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void drawHud() {
-        // Score + pause
+        float worldW = viewport.getWorldWidth();
+        float worldH = viewport.getWorldHeight();
+
+        // Score + pause (use viewport height, not Const)
         batch.begin();
-        font.draw(batch, "Score: " + world.getScore(), 20, Const.VIRTUAL_H - 20);
+        font.draw(batch, "Score: " + world.getScore(), 20, worldH - 20);
         font.draw(batch, "||", pauseBtn.x + 18, pauseBtn.y + 46);
         batch.end();
 
-        // Bottom bar
+        // Bottom bar (fills width)
         sr.begin(ShapeRenderer.ShapeType.Filled);
         sr.setColor(0f, 0f, 0f, 0.62f);
-        sr.rect(hudBar.x, hudBar.y, hudBar.width, hudBar.height);
+        sr.rect(0, 0, worldW, barH);
         sr.end();
 
-        // Cards (ONLY the card art)
+        // Cards
         drawCard(blueCardTex, blueCard, blueScale, world.isBlueUsed());
         drawCard(redCardTex,  redCard,  redScale,  world.isRedUsed());
     }
 
     private void drawCard(Texture tex, Rectangle area, float scale, boolean used) {
-        // How much space to leave inside the card area
         float pad = 10f;
 
         float availW = area.width - pad * 2f;
         float availH = area.height - pad * 2f;
 
-        // Texture aspect ratio (this is the important part)
         float texW = tex.getWidth();
         float texH = tex.getHeight();
-        float aspect = texW / texH; // width = height * aspect
+        float aspect = texW / texH;
 
-        // Fit by height first (so the card stays tall like your reference)
         float h = availH;
         float w = h * aspect;
 
-        // If it becomes too wide, clamp by width instead
         if (w > availW) {
             w = availW;
             h = w / aspect;
         }
 
-        // Press animation scale
         w *= scale;
         h *= scale;
 
-        // Center inside the area
         float x = area.x + (area.width - w) * 0.5f;
         float y = area.y + (area.height - h) * 0.5f;
 
@@ -283,15 +315,18 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void drawPauseOverlay() {
+        float worldW = viewport.getWorldWidth();
+        float worldH = viewport.getWorldHeight();
+
         sr.begin(ShapeRenderer.ShapeType.Filled);
         sr.setColor(0f, 0f, 0f, 0.55f);
-        sr.rect(0, 0, Const.VIRTUAL_W, Const.VIRTUAL_H);
+        sr.rect(0, 0, worldW, worldH);
         sr.end();
 
         batch.begin();
         font.draw(batch, "PAUSED",
-                Const.VIRTUAL_W * 0.5f - 60,
-                Const.VIRTUAL_H * 0.5f + 160);
+                worldW * 0.5f - 60,
+                worldH * 0.5f + 160);
         font.draw(batch, "RESUME", resumeBtn.x + 85, resumeBtn.y + 55);
         font.draw(batch, "EXIT TO MENU", exitBtn.x + 55, exitBtn.y + 55);
         batch.end();

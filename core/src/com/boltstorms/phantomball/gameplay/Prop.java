@@ -84,6 +84,14 @@ public class Prop {
         if (pos.y < r) { pos.y = r; vel.y *= -1; }
         if (pos.y > H - r) { pos.y = H - r; vel.y *= -1; }
     }
+    public float getRadius() {
+        return r;
+    }
+
+
+    public void shrink(float amount) { r = Math.max(0f, r - amount); }
+
+    public boolean isDead() { return r <= Const.PROP_DIE_RADIUS; }
 
     public boolean collides(Ball ball) {
         float dx = ball.getPos().x - pos.x;
@@ -93,12 +101,31 @@ public class Prop {
     }
 
     public void respawn(float W, float H) {
-        pos.set(MathUtils.random(r, W - r), MathUtils.random(r, H - r));
-        vel.set(MathUtils.random(-160f, 160f), MathUtils.random(-160f, 160f));
-        if (vel.len2() < 70f * 70f) vel.set(140f, 90f);
+
+        // ✅ IMPORTANT: reset size on respawn (so new enemies don't stay tiny)
+        r = MathUtils.random(Const.PROP_MIN_RADIUS, Const.PROP_MAX_RADIUS);
+
+        // random position based on NEW radius
+        pos.set(
+                MathUtils.random(r, W - r),
+                MathUtils.random(r, H - r)
+        );
+
+        // random velocity
+        vel.set(
+                MathUtils.random(-160f, 160f),
+                MathUtils.random(-160f, 160f)
+        );
+
+        // Prevent very slow props
+        if (vel.len2() < 70f * 70f) {
+            vel.set(140f, 90f);
+        }
+
         pickSprite();
         clampSpeed();
     }
+
 
     public void draw(SpriteBatch batch) {
         float size = r * 2f;
