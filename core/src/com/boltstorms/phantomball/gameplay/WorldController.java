@@ -2,153 +2,120 @@ package com.boltstorms.phantomball.gameplay;
 
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.util.Const;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import java.util.ArrayList;
 
 public class WorldController {
 
-    private float W = 0, H = 0;
+    private float W, H;
 
-    private final Ball ball = new Ball();
+    private Ball blueBall;
+    private Ball redBall;
+
+    private boolean blueUsed = false;
+    private boolean redUsed = false;
+
     private final ArrayList<Prop> props = new ArrayList<>();
 
-    private boolean dead = false;
     private float driftTimer = 0f;
     private boolean paused = false;
-
     private int score = 0;
 
-    // Called once when screen size is known
     public void resize(int width, int height) {
         W = width;
         H = height;
         reset();
     }
 
-    public void togglePause() {
-        paused = !paused;
-    }
-
-    public void setPaused(boolean paused) {
-        this.paused = paused;
-    }
-
-    public boolean isPaused() {
-        return paused;
-    }
-
-    // Reset entire game state
     private void reset() {
-        dead = false;
-        driftTimer = 0f;
         score = 0;
+        driftTimer = 0f;
 
-        ball.reset(W * 0.5f, H * 0.5f);
+        if (blueBall != null) blueBall.dispose();
+        if (redBall != null) redBall.dispose();
+
+        blueBall = null;
+        redBall = null;
+        blueUsed = false;
+        redUsed = false;
 
         props.clear();
         for (int i = 0; i < 10; i++) {
-            props.add(Prop.randomProp(W, H, i % 2 == 0));
+            PhantomType t = (i % 2 == 0) ? PhantomType.BLUE : PhantomType.RED;
+            props.add(Prop.randomProp(W, H, t));
         }
     }
 
-    // Tap input
-    public void onTap() {
-        if (dead) {
-            reset();
-        } else {
-            ball.toggleGhost(); // swap PhantomPlayer <-> PhantomPlayerGhost
-        }
+    public void summonBlue() {
+        if (blueUsed) return;
+        blueUsed = true;
+        blueBall = new Ball(PhantomType.BLUE);
+        blueBall.reset(W * 0.35f, H * 0.5f);
     }
 
-    // Main update loop
+    public void summonRed() {
+        if (redUsed) return;
+        redUsed = true;
+        redBall = new Ball(PhantomType.RED);
+        redBall.reset(W * 0.65f, H * 0.5f);
+    }
+
     public void update(float dt) {
-        if (W <= 0 || H <= 0) return;
-        if (dead || paused) return;
+        if (paused) return;
 
-        ball.update(dt, W, H);
+        if (blueBall != null) blueBall.update(dt, W, H);
+        if (redBall != null) redBall.update(dt, W, H);
 
         driftTimer += dt;
-        boolean doNudge = driftTimer >= Const.DRIFT_NUDGE_TIME;
-        if (doNudge) driftTimer = 0f;
+        boolean nudge = driftTimer >= Const.DRIFT_NUDGE_TIME;
+        if (nudge) driftTimer = 0f;
 
         for (Prop p : props) {
-            if (doNudge) p.nudgeVelocity();
+            if (nudge) p.nudgeVelocity();
             p.update(dt, W, H);
 
-            if (p.collides(ball)) {
-                boolean sameColor =
-                        (ball.isGhost() && p.isGhostProp()) ||
-                                (!ball.isGhost() && !p.isGhostProp());
+            if (blueBall != null && p.collides(blueBall) && p.getType() == PhantomType.BLUE) {
+                score++;
+                p.respawn(W, H);
+            }
 
-                if (sameColor) {
-                    score++;
-                    ball.grow(Const.ABSORB_GROWTH);
-                    p.respawn(W, H);
-                } else {
-                    ball.shrink(Const.DAMAGE_SHRINK);
-                    p.respawn(W, H);
-
-                    if (ball.isDeadBySize()) {
-                        dead = true;
-                        break;
-                    }
-                }
+            if (redBall != null && p.collides(redBall) && p.getType() == PhantomType.RED) {
+                score++;
+                p.respawn(W, H);
             }
         }
     }
 
-    /**
-     * Draw everything:
-     * - Props: ShapeRenderer
-     * - Player ball sprite: SpriteBatch
-     */
     public void draw(ShapeRenderer sr, SpriteBatch batch) {
-
-        // Draw props + player with SpriteBatch
         batch.begin();
-        for (Prop p : props) {
-            p.draw(batch);
-        }
-        ball.draw(batch);
+        for (Prop p : props) p.draw(batch);
+        if (blueBall != null) blueBall.draw(batch);
+        if (redBall != null) redBall.draw(batch);
         batch.end();
-
-        // Dead overlay stays ShapeRenderer
-        if (dead) {
-            sr.begin(ShapeRenderer.ShapeType.Filled);
-            sr.setColor(0f, 0f, 0f, 0.35f);
-            sr.rect(0, 0, W, H);
-            sr.end();
-        }
     }
-
-
-    public void dispose() {
-        ball.dispose();
-        Prop.disposeAll();
-    }
-
-    // ===== HUD GETTERS =====
 
     public int getScore() {
         return score;
     }
 
-    public boolean isGhostState() {
-        return ball.isGhost();
+    public boolean isBlueUsed() {
+        return blueUsed;
+    }
+    public void setPlayBounds(float width, float height) {
+        W = width;
+        H = height;
     }
 
-    public boolean isDead() {
-        return dead;
+    public boolean isRedUsed() {
+        return redUsed;
     }
+    public void setPaused(boolean paused) { this.paused = paused; }
+    public boolean isPaused() { return paused; }
 
-    public float getBallRadius() {
-        return ball.getR();
-    }
-
-    public Vector2 getBallPos() {
-        return ball.getPos();
+    public void dispose() {
+        if (blueBall != null) blueBall.dispose();
+        if (redBall != null) redBall.dispose();
+        Prop.disposeAll();
     }
 }

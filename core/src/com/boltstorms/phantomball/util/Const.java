@@ -12,11 +12,11 @@ public final class Const {
     public static final float BALL_RADIUS = 18f;
 
     // Speeds
-    public static final float BALL_SPEED_X = 360f;
-    public static final float BALL_SPEED_Y = 280f;
+    public static final float BALL_SPEED_X = 195f;
+    public static final float BALL_SPEED_Y = 160f;
 
     public static final float PROP_MIN_RADIUS = 14f;
-    public static final float PROP_MAX_RADIUS = 28f;
+    public static final float PROP_MAX_RADIUS = 32f;
 
     public static final float PROP_MIN_SPEED = 80f;
     public static final float PROP_MAX_SPEED = 220f;
@@ -25,8 +25,8 @@ public final class Const {
     public static final float DRIFT_NUDGE_TIME = 1.5f;
 
     // Ball size / health-like behavior
-    public static final float BALL_START_RADIUS = 18f;
-    public static final float BALL_MIN_RADIUS = 10f;    // die if smaller than this
+    public static final float BALL_START_RADIUS = 32f;
+    public static final float BALL_MIN_RADIUS = 16f;    // die if smaller than this
     public static final float BALL_MAX_RADIUS = 60f;    // cap so it doesn't fill screen
 
     // Absorb / damage amounts
