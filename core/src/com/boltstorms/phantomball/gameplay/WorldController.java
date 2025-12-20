@@ -1,5 +1,6 @@
 package com.boltstorms.phantomball.gameplay;
 
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.util.Const;
@@ -25,6 +26,7 @@ public class WorldController {
         H = height;
         reset();
     }
+
     public void togglePause() {
         paused = !paused;
     }
@@ -36,7 +38,6 @@ public class WorldController {
     public boolean isPaused() {
         return paused;
     }
-
 
     // Reset entire game state
     private void reset() {
@@ -57,7 +58,7 @@ public class WorldController {
         if (dead) {
             reset();
         } else {
-            ball.toggleGhost(); // switch red <-> blue
+            ball.toggleGhost(); // swap PhantomPlayer <-> PhantomPlayerGhost
         }
     }
 
@@ -65,7 +66,6 @@ public class WorldController {
     public void update(float dt) {
         if (W <= 0 || H <= 0) return;
         if (dead || paused) return;
-
 
         ball.update(dt, W, H);
 
@@ -78,7 +78,6 @@ public class WorldController {
             p.update(dt, W, H);
 
             if (p.collides(ball)) {
-
                 boolean sameColor =
                         (ball.isGhost() && p.isGhostProp()) ||
                                 (!ball.isGhost() && !p.isGhostProp());
@@ -100,18 +99,32 @@ public class WorldController {
         }
     }
 
-    // Draw everything
-    public void draw(ShapeRenderer sr) {
+    /**
+     * Draw everything:
+     * - Props: ShapeRenderer
+     * - Player ball sprite: SpriteBatch
+     */
+    public void draw(ShapeRenderer sr, SpriteBatch batch) {
+        // Draw props using shapes
+        sr.begin(ShapeRenderer.ShapeType.Filled);
         for (Prop p : props) {
             p.draw(sr);
         }
-
-        ball.draw(sr);
 
         if (dead) {
             sr.setColor(0f, 0f, 0f, 0.35f);
             sr.rect(0, 0, W, H);
         }
+        sr.end();
+
+        // Draw player using sprite
+        batch.begin();
+        ball.draw(batch);
+        batch.end();
+    }
+
+    public void dispose() {
+        ball.dispose();
     }
 
     // ===== HUD GETTERS =====
@@ -132,7 +145,6 @@ public class WorldController {
         return ball.getR();
     }
 
-    // ✅ NEW: allow GameScreen to draw name above ball
     public Vector2 getBallPos() {
         return ball.getPos();
     }

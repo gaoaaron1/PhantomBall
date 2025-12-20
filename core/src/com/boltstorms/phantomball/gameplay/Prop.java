@@ -92,9 +92,9 @@ public class Prop {
     public void draw(ShapeRenderer sr) {
         // Solid props are opaque, ghost props are translucent
         if (ghostProp) {
-            sr.setColor(0.55f, 0.85f, 1f, 0.30f); // translucent cyan
-        } else {
             sr.setColor(1f, 0.4f, 0.55f, 1f);    // solid pink/red
+        } else {
+            sr.setColor(0.55f, 0.85f, 1f, 0.30f); // translucent cyan
         }
 
         sr.circle(pos.x, pos.y, r);
