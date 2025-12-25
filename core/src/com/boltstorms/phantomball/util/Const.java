@@ -35,8 +35,11 @@ public final class Const {
 
     public static final float BALL_GROW_AMOUNT  = 2.2f;
     public static final float BALL_SHRINK_AMOUNT = 3.2f;
-    public static final float ABSORB_GROWTH = 2.2f;     // how much radius increases on safe hit
-    public static final float DAMAGE_SHRINK = 3.5f;     // how much radius decreases on wrong hit
+    public static final float PROP_DRAIN_RATE = 55f;   // radius per second drained from spirit
+    public static final float BALL_GROW_RATE  = 25f;   // radius per second gained on correct drain
+
+    public static final float BALL_DAMAGE_RATE = 65f;  // radius per second lost on wrong drain
+
     public static final float PROP_HIT_SHRINK = 4.0f;
     public static final float PROP_DIE_RADIUS = 10.0f;
 

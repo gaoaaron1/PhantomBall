@@ -15,6 +15,8 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.boltstorms.phantomball.PhantomBallGame;
 import com.boltstorms.phantomball.gameplay.WorldController;
 import com.boltstorms.phantomball.util.Const;
+import com.badlogic.gdx.audio.Music;
+
 
 public class GameScreen extends ScreenAdapter {
 
@@ -54,12 +56,22 @@ public class GameScreen extends ScreenAdapter {
     private float barH = 170f;
     private float playH = 0f;
 
+    private Music bgMusic;
+    private boolean musicPausedByWorld = false;
+
     public GameScreen(PhantomBallGame game) {
         this.game = game;
     }
 
     @Override
     public void show() {
+
+
+        bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/spirithunter.mp3"));
+        bgMusic.setLooping(true);
+        bgMusic.setVolume(0.6f);
+        bgMusic.play();
+
         sr = new ShapeRenderer();
         batch = new SpriteBatch();
 
@@ -178,6 +190,21 @@ public class GameScreen extends ScreenAdapter {
 
     @Override
     public void render(float delta) {
+
+        // keep music in sync with world pause
+        if (world.isPaused()) {
+            if (bgMusic != null && bgMusic.isPlaying()) {
+                bgMusic.pause();
+                musicPausedByWorld = true;
+            }
+        } else {
+            if (bgMusic != null && musicPausedByWorld) {
+                bgMusic.play();
+                musicPausedByWorld = false;
+            }
+        }
+
+
         smoothCardScales(delta);
 
         // ===== Input =====
@@ -266,24 +293,25 @@ public class GameScreen extends ScreenAdapter {
         float worldW = viewport.getWorldWidth();
         float worldH = viewport.getWorldHeight();
 
-        // Score + pause (use viewport height, not Const)
+        // Score + pause
         batch.begin();
         font.draw(batch, "Score: " + world.getScore(), 20, worldH - 20);
         font.draw(batch, "||", pauseBtn.x + 18, pauseBtn.y + 46);
         batch.end();
 
-        // Bottom bar (fills width)
+        // Bottom bar
         sr.begin(ShapeRenderer.ShapeType.Filled);
         sr.setColor(0f, 0f, 0f, 0.62f);
         sr.rect(0, 0, worldW, barH);
         sr.end();
 
-        // Cards
-        drawCard(blueCardTex, blueCard, blueScale, world.isBlueUsed());
-        drawCard(redCardTex,  redCard,  redScale,  world.isRedUsed());
+        // Cards (NOW with levels)
+        drawCard(blueCardTex, blueCard, blueScale, world.isBlueUsed(), world.getBlueLevel());
+        drawCard(redCardTex,  redCard,  redScale,  world.isRedUsed(),  world.getRedLevel());
     }
 
-    private void drawCard(Texture tex, Rectangle area, float scale, boolean used) {
+
+    private void drawCard(Texture tex, Rectangle area, float scale, boolean used, int level) {
         float pad = 10f;
 
         float availW = area.width - pad * 2f;
@@ -311,8 +339,13 @@ public class GameScreen extends ScreenAdapter {
         batch.setColor(1f, 1f, 1f, used ? 0.30f : 1f);
         batch.draw(tex, x, y, w, h);
         batch.setColor(1f, 1f, 1f, 1f);
+
+        // Draw level text on top-left of the card area
+        font.draw(batch, "LV " + level, area.x + 14f, area.y + area.height - 14f);
+
         batch.end();
     }
+
 
     private void drawPauseOverlay() {
         float worldW = viewport.getWorldWidth();
@@ -341,5 +374,11 @@ public class GameScreen extends ScreenAdapter {
         if (sr != null) sr.dispose();
         if (batch != null) batch.dispose();
         if (font != null) font.dispose();
+        if (bgMusic != null) {
+            bgMusic.stop();
+            bgMusic.dispose();
+            bgMusic = null;
+        }
+
     }
 }
