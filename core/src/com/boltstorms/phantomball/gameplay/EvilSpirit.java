@@ -84,15 +84,21 @@ public class EvilSpirit {
         this.type = type;
         setLevel(level);
 
-        // Start at half HP → mid size
+        // Start at 50% HP → mid size
         this.hp = stats.maxHp * 0.5f;
         syncRadiusToHp();
     }
 
+
     private void setLevel(int newLevel) {
-        this.level = MathUtils.clamp(newLevel, 1, 5);
+        this.level = MathUtils.clamp(
+                newLevel,
+                Const.SPIRIT_MIN_LV,
+                Const.SPIRIT_MAX_LV
+        );
         this.stats = BallProgression.statsFor(type, this.level);
     }
+
 
     // ===================== SIZE / HP =====================
 
@@ -115,10 +121,13 @@ public class EvilSpirit {
         );
     }
 
+
     public float takeDamage(float amount) {
         float dmg = stats.applyResistance(amount);
+
         float oldHp = hp;
         hp = MathUtils.clamp(hp - dmg, 0f, stats.maxHp);
+
         float dealt = oldHp - hp;
         syncRadiusToHp();
         return dealt;
