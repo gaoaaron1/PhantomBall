@@ -2,6 +2,7 @@ package com.boltstorms.phantomball.screens;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -13,10 +14,9 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.boltstorms.phantomball.PhantomBallGame;
+import com.boltstorms.phantomball.backgrounds.FireplaceBackground;
 import com.boltstorms.phantomball.gameplay.WorldController;
 import com.boltstorms.phantomball.util.Const;
-import com.badlogic.gdx.audio.Music;
-
 
 public class GameScreen extends ScreenAdapter {
 
@@ -42,9 +42,12 @@ public class GameScreen extends ScreenAdapter {
     private Rectangle redCard;
 
     // Textures
-    private Texture bg;
+    // REMOVED: private Texture bg;
     private Texture blueCardTex;
     private Texture redCardTex;
+
+    // NEW: animated fireplace background (OpenFireplace.gif once -> AnimatedFireplace.gif loop)
+    private FireplaceBackground fireplaceBg;
 
     // UI animation
     private boolean touchDown = false;
@@ -65,7 +68,6 @@ public class GameScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-
 
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("music/spirithunter.mp3"));
         bgMusic.setLooping(true);
@@ -98,10 +100,10 @@ public class GameScreen extends ScreenAdapter {
         blueCard = new Rectangle();
         redCard = new Rectangle();
 
-        // Textures
-        bg = new Texture(Gdx.files.internal("bg_Fireplace.png"));
-        bg.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        // NEW: GIF fireplace background
+        fireplaceBg = new FireplaceBackground();
 
+        // Textures
         blueCardTex = new Texture(Gdx.files.internal("BlueSpiritCard1.png"));
         redCardTex  = new Texture(Gdx.files.internal("RedSpiritCard1.png"));
         blueCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
@@ -115,7 +117,6 @@ public class GameScreen extends ScreenAdapter {
         float worldW = viewport.getWorldWidth();
         float worldH = viewport.getWorldHeight();
 
-        // You can keep it fixed OR make it proportional. Fixed usually looks best.
         barH = 170f;
 
         hudBar.set(0, 0, worldW, barH);
@@ -123,10 +124,8 @@ public class GameScreen extends ScreenAdapter {
         playH = worldH - barH;
 
         if (firstTime) {
-            // First time: resize resets world and respawns props
             world.resize((int) worldW, (int) playH);
         } else {
-            // Resizes: keep the current game running
             world.setPlayBounds(worldW, playH);
         }
 
@@ -169,11 +168,8 @@ public class GameScreen extends ScreenAdapter {
         float blueCenterX = blueCard.x + blueCard.width * 0.5f;
         float redCenterX  = redCard.x  + redCard.width  * 0.5f;
 
-// Spawn just above the HUD boundary (world coords)
         float spawnY = 60f;
-
         world.setSummonAnchors(blueCenterX, redCenterX, spawnY);
-
     }
 
     @Override
@@ -184,7 +180,6 @@ public class GameScreen extends ScreenAdapter {
         batch.setProjectionMatrix(cam.combined);
         sr.setProjectionMatrix(cam.combined);
 
-        // Recompute UI + play bounds for new aspect ratio
         rebuildUiLayout(false);
     }
 
@@ -203,7 +198,6 @@ public class GameScreen extends ScreenAdapter {
                 musicPausedByWorld = false;
             }
         }
-
 
         smoothCardScales(delta);
 
@@ -232,7 +226,6 @@ public class GameScreen extends ScreenAdapter {
                 return;
             }
 
-            // Only allow card presses inside HUD bar
             if (hudBar.contains(touch)) {
                 if (blueCard.contains(touch)) pressed = 1;
                 else if (redCard.contains(touch)) pressed = 2;
@@ -254,13 +247,18 @@ public class GameScreen extends ScreenAdapter {
         // ===== Update =====
         world.update(delta);
 
+        // NEW: update fireplace animation (intro -> loop)
+        if (fireplaceBg != null) fireplaceBg.update(delta);
+
         // ===== Render =====
         Gdx.gl.glClearColor(0.05f, 0.05f, 0.07f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Background fills full world size
+        // Background fills full world size (GIF)
         batch.begin();
-        batch.draw(bg, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
+        if (fireplaceBg != null) {
+            fireplaceBg.render(batch, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
+        }
         batch.end();
 
         // World draws ABOVE the HUD bar (so world y=0 starts at screen y=barH)
@@ -310,7 +308,6 @@ public class GameScreen extends ScreenAdapter {
         drawCard(redCardTex,  redCard,  redScale,  world.isRedUsed(),  world.getRedLevel());
     }
 
-
     private void drawCard(Texture tex, Rectangle area, float scale, boolean used, int level) {
         float pad = 10f;
 
@@ -340,12 +337,10 @@ public class GameScreen extends ScreenAdapter {
         batch.draw(tex, x, y, w, h);
         batch.setColor(1f, 1f, 1f, 1f);
 
-        // Draw level text on top-left of the card area
         font.draw(batch, "LV " + level, area.x + 14f, area.y + area.height - 14f);
 
         batch.end();
     }
-
 
     private void drawPauseOverlay() {
         float worldW = viewport.getWorldWidth();
@@ -368,7 +363,12 @@ public class GameScreen extends ScreenAdapter {
     @Override
     public void dispose() {
         if (world != null) world.dispose();
-        if (bg != null) bg.dispose();
+
+        if (fireplaceBg != null) {
+            fireplaceBg.dispose();
+            fireplaceBg = null;
+        }
+
         if (blueCardTex != null) blueCardTex.dispose();
         if (redCardTex != null) redCardTex.dispose();
         if (sr != null) sr.dispose();
@@ -379,6 +379,5 @@ public class GameScreen extends ScreenAdapter {
             bgMusic.dispose();
             bgMusic = null;
         }
-
     }
 }

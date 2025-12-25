@@ -1,34 +1,47 @@
 package com.boltstorms.phantomball.gameplay.stats;
 
+import com.badlogic.gdx.math.MathUtils;
 import com.boltstorms.phantomball.gameplay.PhantomType;
-import com.boltstorms.phantomball.util.Const;
 
 public final class BallProgression {
+
     private BallProgression() {}
 
     public static BallStats statsFor(PhantomType type, int level) {
-        if (level < 1) level = 1;
+        int lv = Math.max(1, level);
 
-        float baseSpeed = (float) Math.sqrt(
-                Const.BALL_SPEED_X * Const.BALL_SPEED_X +
-                        Const.BALL_SPEED_Y * Const.BALL_SPEED_Y
-        );
+        // You can tune blue/red to feel different
+        float baseHp   = (type == PhantomType.BLUE) ? 120f : 110f;
+        float baseAtk  = (type == PhantomType.BLUE) ? 10f  : 12f;
+        float baseSpd  = (type == PhantomType.BLUE) ? 210f : 210f;
 
-        float speed        = baseSpeed + (level - 1) * 12f;
-        float damageToProp = Const.PROP_HIT_SHRINK + (level - 1) * 0.6f;
-        float resistance   = Math.min(0.50f, 0.05f * (level - 1)); // cap 50%
-        float maxRadius    = Const.BALL_MAX_RADIUS + (level - 1) * 4f;
-        float growAmount   = Const.BALL_GROW_AMOUNT + (level - 1) * 0.15f;
-        float shrinkAmount = Const.BALL_SHRINK_AMOUNT + (level - 1) * 0.20f;
+        float hp   = baseHp  + (lv - 1) * 18f;
+        float atk  = baseAtk + (lv - 1) * 2.2f;
+
+        // cap resistance so it doesn't become invincible
+        float res  = MathUtils.clamp(0.08f + (lv - 1) * 0.03f, 0f, 0.45f);
+
+        float spd  = baseSpd + (lv - 1) * 6f;
+
+        // max radius cap grows slowly per level
+        float maxR = 60f + (lv - 1) * 3f;
+
+        // optional knobs (not required by the new HP system)
+        float growAmount   = 2.2f + (lv - 1) * 0.15f;
+        float shrinkAmount = 3.2f + (lv - 1) * 0.20f;
+
+        int xpToNext = 10 + (lv - 1) * 5;
 
         return new BallStats(
-                level,
-                speed,
-                damageToProp,
-                resistance,
-                maxRadius,
+                lv,
+                spd,
+                hp,
+                atk,
+                res,
+                maxR,
                 growAmount,
-                shrinkAmount
+                shrinkAmount,
+                xpToNext
         );
     }
 }

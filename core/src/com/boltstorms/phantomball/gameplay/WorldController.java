@@ -27,12 +27,9 @@ public class WorldController {
     private float redSpawnX  = 0f;
     private float spawnY     = 0f;
 
-    // NEW: track “correct hits” for leveling
-    private int blueCorrectHits = 0;
-    private int redCorrectHits  = 0;
-
-    // NEW: how many correct hits needed per level
-    private static final int HITS_PER_LEVEL = 10;
+    // NEW: XP tracking (per run)
+    private int blueXp = 0;
+    private int redXp  = 0;
 
     public void resize(int width, int height) {
         W = width;
@@ -90,10 +87,9 @@ public class WorldController {
         score = 0;
         driftTimer = 0f;
 
-        // NOTE: We do NOT reset PlayerProfile levels here
-        // (we do reset the “during-run” hit counters)
-        blueCorrectHits = 0;
-        redCorrectHits = 0;
+        // reset run XP (does NOT reset PlayerProfile levels)
+        blueXp = 0;
+        redXp = 0;
 
         if (blueBall != null) blueBall.dispose();
         if (redBall != null) redBall.dispose();
@@ -110,21 +106,29 @@ public class WorldController {
         }
     }
 
-    private void onBlueCorrectHit() {
-        blueCorrectHits++;
+    // ===== XP + Leveling helpers =====
 
-        if (blueCorrectHits % HITS_PER_LEVEL == 0) {
+    private void addBlueXp(int amount) {
+        if (blueBall == null) return;
+
+        blueXp += amount;
+
+        while (blueBall != null && blueXp >= blueBall.getXpToNext()) {
+            blueXp -= blueBall.getXpToNext();
             int newLevel = PlayerProfile.levelUpBlue();
-            if (blueBall != null) blueBall.setLevel(newLevel);
+            blueBall.setLevel(newLevel);
         }
     }
 
-    private void onRedCorrectHit() {
-        redCorrectHits++;
+    private void addRedXp(int amount) {
+        if (redBall == null) return;
 
-        if (redCorrectHits % HITS_PER_LEVEL == 0) {
+        redXp += amount;
+
+        while (redBall != null && redXp >= redBall.getXpToNext()) {
+            redXp -= redBall.getXpToNext();
             int newLevel = PlayerProfile.levelUpRed();
-            if (redBall != null) redBall.setLevel(newLevel);
+            redBall.setLevel(newLevel);
         }
     }
 
@@ -146,21 +150,22 @@ public class WorldController {
             if (blueBall != null && p.collides(blueBall)) {
 
                 if (p.getType() == PhantomType.BLUE) {
-                    // smooth drain (correct)
+                    // correct drain
                     float drain = Const.PROP_DRAIN_RATE * dt;
                     p.shrink(drain);
 
+                    // grow = heal (HP drives size)
                     blueBall.grow(Const.BALL_GROW_RATE * dt);
 
                     if (p.isDead()) {
                         score++;
-                        onBlueCorrectHit();
+                        addBlueXp(1);
                         p.respawn(W, H);
                     }
 
                 } else {
-                    // smooth damage (wrong)
-                    blueBall.shrink(Const.BALL_DAMAGE_RATE * dt);
+                    // wrong drain: HP damage (size shrinks automatically)
+                    blueBall.takeDamage(Const.BALL_DAMAGE_RATE * dt);
 
                     if (blueBall.isDead()) {
                         blueBall.dispose();
@@ -174,7 +179,6 @@ public class WorldController {
             if (redBall != null && p.collides(redBall)) {
 
                 if (p.getType() == PhantomType.RED) {
-                    // smooth drain (correct)
                     float drain = Const.PROP_DRAIN_RATE * dt;
                     p.shrink(drain);
 
@@ -182,13 +186,12 @@ public class WorldController {
 
                     if (p.isDead()) {
                         score++;
-                        onRedCorrectHit();
+                        addRedXp(1);
                         p.respawn(W, H);
                     }
 
                 } else {
-                    // smooth damage (wrong)
-                    redBall.shrink(Const.BALL_DAMAGE_RATE * dt);
+                    redBall.takeDamage(Const.BALL_DAMAGE_RATE * dt);
 
                     if (redBall.isDead()) {
                         redBall.dispose();
@@ -200,12 +203,11 @@ public class WorldController {
         }
     }
 
-
     public void draw(ShapeRenderer sr, SpriteBatch batch) {
         batch.begin();
         for (Prop p : props) p.draw(batch);
         if (blueBall != null) blueBall.draw(batch);
-        if (redBall != null) redBall.draw(batch);
+        if (redBall != null)  redBall.draw(batch);
         batch.end();
     }
 
@@ -213,7 +215,6 @@ public class WorldController {
     public boolean isBlueUsed() { return blueUsed; }
     public boolean isRedUsed() { return redUsed; }
 
-    // NEW: let GameScreen show levels on cards
     public int getBlueLevel() { return PlayerProfile.getBlueLevel(); }
     public int getRedLevel()  { return PlayerProfile.getRedLevel(); }
 

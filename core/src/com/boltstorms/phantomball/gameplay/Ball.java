@@ -19,6 +19,9 @@ public class Ball {
     private final PhantomType type;
     private BallStats stats;
 
+    // NEW: HP
+    private float hp;
+
     // animation
     private float animTime = 0f;
     private float rotation = 0f;
@@ -35,9 +38,16 @@ public class Ball {
 
     private float hitCooldown = 0f;
 
+    // HP -> radius mapping (tweak these)
+    private static final float MIN_HP_SCALE = 0.55f; // near-death size
+    private static final float MAX_HP_SCALE = 1.00f; // full-health size
+
     public Ball(PhantomType type, int level) {
         this.type = type;
         this.stats = BallProgression.statsFor(type, level);
+
+        this.hp = stats.maxHp;
+        syncRadiusToHp();
 
         if (type == PhantomType.BLUE) {
             frame1 = new Texture(Gdx.files.internal("PhantomPlayer.png"));
@@ -49,20 +59,31 @@ public class Ball {
 
         frame1.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         frame2.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+
+        printStats("SPAWN");
     }
 
-    public void setLevel(int level) {
-        stats = BallProgression.statsFor(type, level);
+    private void syncRadiusToHp() {
+        float hpPct = (stats.maxHp <= 0f) ? 1f : MathUtils.clamp(hp / stats.maxHp, 0f, 1f);
+        float scale = MIN_HP_SCALE + (MAX_HP_SCALE - MIN_HP_SCALE) * hpPct;
+
+        r = stats.maxRadius * scale;
         r = MathUtils.clamp(r, Const.BALL_MIN_RADIUS, stats.maxRadius);
     }
 
-    public int getLevel() {
-        return stats.level;
+    public void setLevel(int level) {
+        BallStats old = stats;
+        stats = BallProgression.statsFor(type, level);
+
+        float pct = (old.maxHp <= 0f) ? 1f : (hp / old.maxHp);
+        hp = MathUtils.clamp(pct * stats.maxHp, 0f, stats.maxHp);
+
+        syncRadiusToHp();
+        printStats("LEVEL UP -> " + level);
     }
 
-    public PhantomType getType() {
-        return type;
-    }
+    public int getLevel() { return stats.level; }
+    public PhantomType getType() { return type; }
 
     public Vector2 getPos() { return pos; }
     public float getR() { return r; }
@@ -70,28 +91,57 @@ public class Ball {
     public boolean canBeHit() { return hitCooldown <= 0f; }
     public void triggerHitCooldown(float seconds) { hitCooldown = seconds; }
 
-    public float getDamageToProp() { return stats.damageToProp; }
+    public float getHp() { return hp; }
+    public float getMaxHp() { return stats.maxHp; }
 
-    public void growOnCorrectHit() {
-        r = MathUtils.clamp(r + stats.growAmount, Const.BALL_MIN_RADIUS, stats.maxRadius);
+    public float getAttack() { return stats.attack; }
+    public float getResistance() { return stats.resistance; }
+
+    public int getXpToNext() { return stats.xpToNext; }
+
+    public void heal(float amount) {
+        hp = MathUtils.clamp(hp + amount, 0f, stats.maxHp);
+        syncRadiusToHp();
+        printHp("HEAL");
     }
 
-    public void takeWrongHit() {
-        float dmg = stats.applyResistance(stats.shrinkAmount);
-        r = MathUtils.clamp(r - dmg, Const.BALL_MIN_RADIUS, stats.maxRadius);
+    public void takeDamage(float amount) {
+        float dmg = stats.applyResistance(amount);
+        hp = MathUtils.clamp(hp - dmg, 0f, stats.maxHp);
+        syncRadiusToHp();
+        printHp("DMG");
     }
 
     public boolean isDead() {
-        return r <= Const.BALL_MIN_RADIUS + 0.001f;
-    }
-    // Smooth growth per second (for drain-style collision)
-    public void grow(float amount) {
-        r = MathUtils.clamp(r + amount, Const.BALL_MIN_RADIUS, stats.maxRadius);
+        return hp <= 0.001f;
     }
 
-    // Smooth damage per second (for drain-style collision)
-    public void shrink(float amount) {
-        r = MathUtils.clamp(r - amount, Const.BALL_MIN_RADIUS, stats.maxRadius);
+    public void printStats(String reason) {
+        System.out.println(
+                "[" + reason + "] " + type
+                        + " LV " + stats.level
+                        + " HP " + String.format("%.1f", hp) + "/" + String.format("%.1f", stats.maxHp)
+                        + " ATK " + String.format("%.1f", stats.attack)
+                        + " RES " + String.format("%.2f", stats.resistance)
+                        + " SPD " + String.format("%.1f", stats.speed)
+                        + " maxR " + String.format("%.1f", stats.maxRadius)
+                        + " xpNext " + stats.xpToNext
+        );
+    }
+
+    private void printHp(String reason) {
+        System.out.println(
+                "[HP " + reason + "] " + type
+                        + " LV " + stats.level
+                        + " HP " + String.format("%.2f", hp)
+                        + "/" + String.format("%.2f", stats.maxHp)
+                        + " (R=" + String.format("%.1f", r) + ")"
+        );
+    }
+
+    // IMPORTANT: since radius is HP-driven, treat "grow" as healing
+    public void grow(float amount) {
+        heal(amount);
     }
 
     public void resetWithAngle(float x, float y, float angleDeg) {
@@ -103,8 +153,10 @@ public class Ball {
         frameTimer = 0f;
         frameB = MathUtils.randomBoolean();
 
-        r = Const.BALL_START_RADIUS;
-        r = MathUtils.clamp(r, Const.BALL_MIN_RADIUS, stats.maxRadius);
+        hp = stats.maxHp;
+        syncRadiusToHp();
+
+        printStats("RESET");
     }
 
     public void update(float dt, float W, float H) {
