@@ -15,6 +15,7 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.boltstorms.phantomball.PhantomBallGame;
 import com.boltstorms.phantomball.backgrounds.FireplaceBackground;
+import com.boltstorms.phantomball.gameplay.EvilSpirit;
 import com.boltstorms.phantomball.gameplay.WorldController;
 import com.boltstorms.phantomball.util.Const;
 
@@ -42,11 +43,10 @@ public class GameScreen extends ScreenAdapter {
     private Rectangle redCard;
 
     // Textures
-    // REMOVED: private Texture bg;
     private Texture blueCardTex;
     private Texture redCardTex;
 
-    // NEW: animated fireplace background (OpenFireplace.gif once -> AnimatedFireplace.gif loop)
+    // Background
     private FireplaceBackground fireplaceBg;
 
     // UI animation
@@ -61,6 +61,9 @@ public class GameScreen extends ScreenAdapter {
 
     private Music bgMusic;
     private boolean musicPausedByWorld = false;
+
+    // (WorldController owns the selection timer/state; this is optional to keep)
+    private EvilSpirit selectedSpirit = null;
 
     public GameScreen(PhantomBallGame game) {
         this.game = game;
@@ -88,10 +91,8 @@ public class GameScreen extends ScreenAdapter {
         batch.setProjectionMatrix(cam.combined);
         sr.setProjectionMatrix(cam.combined);
 
-        // World
         world = new WorldController();
 
-        // Create rects (we will set sizes in rebuildUiLayout)
         pauseBtn = new Rectangle();
         resumeBtn = new Rectangle();
         exitBtn = new Rectangle();
@@ -100,16 +101,13 @@ public class GameScreen extends ScreenAdapter {
         blueCard = new Rectangle();
         redCard = new Rectangle();
 
-        // NEW: GIF fireplace background
         fireplaceBg = new FireplaceBackground();
 
-        // Textures
         blueCardTex = new Texture(Gdx.files.internal("BlueSpiritCard1.png"));
         redCardTex  = new Texture(Gdx.files.internal("RedSpiritCard1.png"));
         blueCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         redCardTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
 
-        // Build UI + set world bounds based on current viewport
         rebuildUiLayout(true);
     }
 
@@ -226,6 +224,19 @@ public class GameScreen extends ScreenAdapter {
                 return;
             }
 
+            // Tap spirit in WORLD area to show its level label
+            // World is rendered with +barH transform, so convert by subtracting barH.
+            if (touch.y > barH) {
+                float worldX = touch.x;
+                float worldY = touch.y - barH;
+
+                if (world.tapAt(worldX, worldY)) {
+                    selectedSpirit = world.getSelectedSpirit();
+                    touchDown = false;
+                    return; // don't also trigger summon
+                }
+            }
+
             if (hudBar.contains(touch)) {
                 if (blueCard.contains(touch)) pressed = 1;
                 else if (redCard.contains(touch)) pressed = 2;
@@ -246,26 +257,34 @@ public class GameScreen extends ScreenAdapter {
 
         // ===== Update =====
         world.update(delta);
-
-        // NEW: update fireplace animation (intro -> loop)
         if (fireplaceBg != null) fireplaceBg.update(delta);
 
         // ===== Render =====
         Gdx.gl.glClearColor(0.05f, 0.05f, 0.07f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Background fills full world size (GIF)
+        // Background
         batch.begin();
         if (fireplaceBg != null) {
             fireplaceBg.render(batch, 0, 0, viewport.getWorldWidth(), viewport.getWorldHeight());
         }
         batch.end();
 
-        // World draws ABOVE the HUD bar (so world y=0 starts at screen y=barH)
+        // World draws ABOVE the HUD bar (world y=0 starts at screen y=barH)
         batch.setTransformMatrix(batch.getTransformMatrix().idt().translate(0, barH, 0));
         sr.setTransformMatrix(sr.getTransformMatrix().idt().translate(0, barH, 0));
 
         world.draw(sr, batch);
+
+        // Draw label above selected spirit (inside world transform)
+        EvilSpirit s = world.getSelectedSpirit();
+        if (s != null) {
+            batch.begin();
+            float labelX = s.getPos().x - 18f;
+            float labelY = s.getPos().y + s.getR() + 28f;
+            font.draw(batch, "LV " + s.getLevel(), labelX, labelY);
+            batch.end();
+        }
 
         // Reset transforms for HUD drawing
         batch.setTransformMatrix(batch.getTransformMatrix().idt());
@@ -291,21 +310,67 @@ public class GameScreen extends ScreenAdapter {
         float worldW = viewport.getWorldWidth();
         float worldH = viewport.getWorldHeight();
 
-        // Score + pause
+        // ===== Score + pause =====
         batch.begin();
         font.draw(batch, "Score: " + world.getScore(), 20, worldH - 20);
         font.draw(batch, "||", pauseBtn.x + 18, pauseBtn.y + 46);
         batch.end();
 
-        // Bottom bar
+        // ===== Bottom bar background =====
         sr.begin(ShapeRenderer.ShapeType.Filled);
         sr.setColor(0f, 0f, 0f, 0.62f);
         sr.rect(0, 0, worldW, barH);
         sr.end();
 
-        // Cards (NOW with levels)
+        // ===== Cards =====
         drawCard(blueCardTex, blueCard, blueScale, world.isBlueUsed(), world.getBlueLevel());
         drawCard(redCardTex,  redCard,  redScale,  world.isRedUsed(),  world.getRedLevel());
+
+        // ===== XP bars (horizontal, bordered) =====
+        float barPadX = 16f;
+        float barHgt  = 22f;
+        float barPadY = 12f;
+
+        drawXpBarHorizontal(
+                blueCard.x + barPadX,
+                blueCard.y + barPadY,
+                blueCard.width - barPadX * 2f,
+                barHgt,
+                world.getBlueXp(),
+                world.getBlueXpToNext()
+        );
+
+        drawXpBarHorizontal(
+                redCard.x + barPadX,
+                redCard.y + barPadY,
+                redCard.width - barPadX * 2f,
+                barHgt,
+                world.getRedXp(),
+                world.getRedXpToNext()
+        );
+    }
+
+
+    private void drawXpBarHorizontal(float x, float y, float w, float h, float xp, float xpToNext) {
+        float pct = (xpToNext <= 0f) ? 0f : Math.min(1f, xp / xpToNext);
+
+        // Container (black fill)
+        sr.begin(ShapeRenderer.ShapeType.Filled);
+        sr.setColor(0f, 0f, 0f, 1f);
+        sr.rect(x, y, w, h);
+
+        // Fill (white)
+        sr.setColor(1f, 1f, 1f, 1f);
+        sr.rect(x, y, w * pct, h);
+        sr.end();
+
+        // White border (like your screenshot)
+        sr.begin(ShapeRenderer.ShapeType.Line);
+        sr.setColor(1f, 1f, 1f, 1f);
+        sr.rect(x, y, w, h);
+        // optional: thicker border (draw a second outline slightly inset)
+        sr.rect(x + 1f, y + 1f, w - 2f, h - 2f);
+        sr.end();
     }
 
     private void drawCard(Texture tex, Rectangle area, float scale, boolean used, int level) {
@@ -338,7 +403,6 @@ public class GameScreen extends ScreenAdapter {
         batch.setColor(1f, 1f, 1f, 1f);
 
         font.draw(batch, "LV " + level, area.x + 14f, area.y + area.height - 14f);
-
         batch.end();
     }
 

@@ -1,23 +1,21 @@
 package com.boltstorms.phantomball.gameplay.stats;
 
 public final class BallStats {
-    public final int level;
 
+    public final int level;
     public final float speed;
 
-    // Combat-ish stats
     public final float maxHp;
     public final float attack;
-    public final float resistance; // 0..1
+    public final float resistance;
 
-    // Visual/size caps
+    // NEW: size bounds per level
+    public final float minRadius;
     public final float maxRadius;
 
-    // (Optional tuning knobs you might still want later)
     public final float growAmount;
     public final float shrinkAmount;
 
-    // Leveling
     public final int xpToNext;
 
     public BallStats(
@@ -26,6 +24,7 @@ public final class BallStats {
             float maxHp,
             float attack,
             float resistance,
+            float minRadius,
             float maxRadius,
             float growAmount,
             float shrinkAmount,
@@ -36,6 +35,7 @@ public final class BallStats {
         this.maxHp = maxHp;
         this.attack = attack;
         this.resistance = resistance;
+        this.minRadius = minRadius;
         this.maxRadius = maxRadius;
         this.growAmount = growAmount;
         this.shrinkAmount = shrinkAmount;

@@ -3,6 +3,7 @@ package com.boltstorms.phantomball.gameplay;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.boltstorms.phantomball.gameplay.stats.BallProgression;
@@ -14,12 +15,13 @@ public class Ball {
     private final Vector2 pos = new Vector2();
     private final Vector2 vel = new Vector2();
 
-    private float r = Const.BALL_START_RADIUS;
+    // Collision radius (HP-driven)
+    private float r;
 
     private final PhantomType type;
     private BallStats stats;
 
-    // NEW: HP
+    // HP drives size between stats.minRadius..stats.maxRadius for the level
     private float hp;
 
     // animation
@@ -38,15 +40,12 @@ public class Ball {
 
     private float hitCooldown = 0f;
 
-    // HP -> radius mapping (tweak these)
-    private static final float MIN_HP_SCALE = 0.55f; // near-death size
-    private static final float MAX_HP_SCALE = 1.00f; // full-health size
-
     public Ball(PhantomType type, int level) {
         this.type = type;
         this.stats = BallProgression.statsFor(type, level);
 
-        this.hp = stats.maxHp;
+        // Start at half HP -> mid size between min/max radius
+        this.hp = stats.maxHp * 0.5f;
         syncRadiusToHp();
 
         if (type == PhantomType.BLUE) {
@@ -65,18 +64,26 @@ public class Ball {
 
     private void syncRadiusToHp() {
         float hpPct = (stats.maxHp <= 0f) ? 1f : MathUtils.clamp(hp / stats.maxHp, 0f, 1f);
-        float scale = MIN_HP_SCALE + (MAX_HP_SCALE - MIN_HP_SCALE) * hpPct;
 
-        r = stats.maxRadius * scale;
-        r = MathUtils.clamp(r, Const.BALL_MIN_RADIUS, stats.maxRadius);
+        // Map HP% -> [minRadius, maxRadius] for this level
+        float rawR = stats.minRadius + (stats.maxRadius - stats.minRadius) * hpPct;
+
+        // Apply collision scaling + master scaling
+        r = rawR * Const.BALL_COLLISION_SCALE * Const.BALL_SIZE_SCALE;
+
+        // Safety clamp to this level's bounds
+        float minClamp = stats.minRadius * Const.BALL_COLLISION_SCALE * Const.BALL_SIZE_SCALE;
+        float maxClamp = stats.maxRadius * Const.BALL_COLLISION_SCALE * Const.BALL_SIZE_SCALE;
+        r = MathUtils.clamp(r, minClamp, maxClamp);
     }
 
     public void setLevel(int level) {
         BallStats old = stats;
         stats = BallProgression.statsFor(type, level);
 
-        float pct = (old.maxHp <= 0f) ? 1f : (hp / old.maxHp);
-        hp = MathUtils.clamp(pct * stats.maxHp, 0f, stats.maxHp);
+        // keep HP percentage across level-up
+        float pct = (old.maxHp <= 0f) ? 1f : MathUtils.clamp(hp / old.maxHp, 0f, 1f);
+        hp = pct * stats.maxHp;
 
         syncRadiusToHp();
         printStats("LEVEL UP -> " + level);
@@ -116,30 +123,7 @@ public class Ball {
         return hp <= 0.001f;
     }
 
-    public void printStats(String reason) {
-        System.out.println(
-                "[" + reason + "] " + type
-                        + " LV " + stats.level
-                        + " HP " + String.format("%.1f", hp) + "/" + String.format("%.1f", stats.maxHp)
-                        + " ATK " + String.format("%.1f", stats.attack)
-                        + " RES " + String.format("%.2f", stats.resistance)
-                        + " SPD " + String.format("%.1f", stats.speed)
-                        + " maxR " + String.format("%.1f", stats.maxRadius)
-                        + " xpNext " + stats.xpToNext
-        );
-    }
-
-    private void printHp(String reason) {
-        System.out.println(
-                "[HP " + reason + "] " + type
-                        + " LV " + stats.level
-                        + " HP " + String.format("%.2f", hp)
-                        + "/" + String.format("%.2f", stats.maxHp)
-                        + " (R=" + String.format("%.1f", r) + ")"
-        );
-    }
-
-    // IMPORTANT: since radius is HP-driven, treat "grow" as healing
+    // "grow" is just healing in this HP-driven size system
     public void grow(float amount) {
         heal(amount);
     }
@@ -153,7 +137,8 @@ public class Ball {
         frameTimer = 0f;
         frameB = MathUtils.randomBoolean();
 
-        hp = stats.maxHp;
+        // Reset to half HP -> mid size
+        hp = stats.maxHp * 0.5f;
         syncRadiusToHp();
 
         printStats("RESET");
@@ -187,7 +172,9 @@ public class Ball {
         Texture tex = getCurrentTexture();
 
         float pulse = 1f + MathUtils.sin(animTime * PULSE_SPEED) * PULSE_AMPLITUDE;
-        float size = r * 2f * pulse;
+
+        // Sprite size uses r but still respects your sprite scale
+        float size = r * 2f * pulse * Const.BALL_SPRITE_SCALE;
 
         float x = pos.x - size * 0.5f;
         float y = pos.y - size * 0.5f;
@@ -205,8 +192,38 @@ public class Ball {
         );
     }
 
+    public void drawDebug(ShapeRenderer sr) {
+        if (!Const.DEBUG_DRAW) return;
+        sr.setColor(1f, 1f, 0f, 1f);
+        sr.circle(pos.x, pos.y, r);
+    }
+
     public void dispose() {
         frame1.dispose();
         frame2.dispose();
+    }
+
+    private void printStats(String reason) {
+        System.out.println(
+                "[" + reason + "] " + type
+                        + " LV " + stats.level
+                        + " HP " + String.format("%.1f", hp) + "/" + String.format("%.1f", stats.maxHp)
+                        + " ATK " + String.format("%.1f", stats.attack)
+                        + " RES " + String.format("%.2f", stats.resistance)
+                        + " SPD " + String.format("%.1f", stats.speed)
+                        + " minR " + String.format("%.1f", stats.minRadius)
+                        + " maxR " + String.format("%.1f", stats.maxRadius)
+                        + " xpNext " + stats.xpToNext
+        );
+    }
+
+    private void printHp(String reason) {
+        System.out.println(
+                "[HP " + reason + "] " + type
+                        + " LV " + stats.level
+                        + " HP " + String.format("%.2f", hp)
+                        + "/" + String.format("%.2f", stats.maxHp)
+                        + " (R=" + String.format("%.1f", r) + ")"
+        );
     }
 }
